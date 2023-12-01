@@ -20,7 +20,7 @@ class CheckUp:
         if not os.path.exists(self.path_report):
             os.mkdir(self.path_report)
             os.mkdir(self.path_figure)
-            for i in range(1,17):
+            for i in range(1,16):
                 os.mkdir(f"{self.path_report}\Критерий №{i}")
 
         # ------------------------------------------------------------------
@@ -854,6 +854,43 @@ class CheckUp:
     
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
+    # Метод для проверки 15-го критерия по наличию СХН в узле с ненулевой нагрузкой
+    def crit_15(self):
+        print("Выполняется критерий №15")
+        flag = False
+        for mode in self.modes_path:
+            j=0
+            for mode_year in mode:
+                self.rastr_work(mode_year)
+                # Название характерного режима
+                name_char_mode = os.path.basename(mode_year)[:-4]
+                self.node.SetSel("pn>0")
+                index = self.node.FindNextSel(-1)
+                # Перебор всех узлов
+                mass_ny = []
+                for i in range(self.node.Count):
+                    # Проверка задания СХН
+                    if self.nsx_node.Z(index)==0:
+                        mass_ny.append(self.ny_node.Z(index))
+                    index = self.node.FindNextSel(index)
+                if len(mass_ny)>0:
+                    text = (f"""Warning: Отсутсвует СХН в узле с ненулевой нагрузкой
+                                Год: {self.year_mass[j]}
+                                Характерный режим: {name_char_mode}
+                                Номер узла: {mass_ny}
+                                """)
+                    with open(f"{self.path_report}\Критерий №15\К15  {self.date}.txt", mode="a+") as f:
+                        f.write(f"\n{text}")
+                    flag = True
+                j += 1
+        if flag!=True:
+            text = f"Все СХН заданны"
+            with open(f"{self.path_report}\Критерий №15\К15  {self.date}.txt", mode="a+") as f:
+                f.write(f"\n{text}")
+                
+                
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
     # Метод для проверки ВСЕХ критериев
     def all_crit(self):
         self.crit_1()
@@ -870,6 +907,7 @@ class CheckUp:
         self.crit_12()
         self.crit_13()
         self.crit_14()
+        self.crit_15()
     
 def start(direct_path):
     direct_path = input("Введите путь к папкам годов:\n")
@@ -889,6 +927,7 @@ def start(direct_path):
     12 -  Проверка соответствия состояния и мощности генератора
     13 -  Проверка нарушения токовых ограничений по ветвям
     14 -  Проверка корректности параметров ветвей и узлов
+    15 -  Проверка наличия СХН в узле ненулевой нагрузкой
           """)
     num_crit = input("Введите номер критерия: ")
     match num_crit:
@@ -922,6 +961,8 @@ def start(direct_path):
             CheckUp(direct_path).crit_13()
         case "14":
             CheckUp(direct_path).crit_14()
+        case "15":
+            CheckUp(direct_path).crit_15()
         case _:
             print("Неверный критерий")
     return direct_path
@@ -933,7 +974,3 @@ while True:
         path = start(path)
     else:
         break
-
-
-# C:\Users\bukre\OneDrive\Рабочий стол\ОДУ\Проверка расчетных схем\Файл сечений\сечения.sch
-# C:\Users\bukre\OneDrive\Документы\RastrWin3\SHABLON\сечения.sch
