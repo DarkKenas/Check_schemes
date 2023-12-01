@@ -1,50 +1,36 @@
 import os
 import win32com.client
 import matplotlib.pyplot as plt
-from config import pn_set_2, per_up_set, per_down_set, dp_set, Unom_set
+from datetime import datetime
+from config import pn_set_2, per_up_set, per_down_set, dp_set, Unom_set, figure_set
 from config import Umax_set, Umin_set, tan_min, tan_max, pn_set_4, Umax_zd_set, Umin_zd_set
-
+from config import rmax_set, rmin_set, xmin_set, xmax_set, gmin_set, gmax_set, bmin_set, bmax_set
+from config import Pnmax_set, Pnmin_set, Qnmax_set, Qnmin_set, Pgmin_set
 
 class CheckUp:
-    def __init__(self, directory_path: str, clear_report: bool, clear_figure: bool):
+    def __init__(self, directory_path: str):
+        # ------------------------------------------------------------------
+        # Получаем текущую дату и время
+        self.date = f"{datetime.now().day}_{datetime.now().month}_{datetime.now().year}  {datetime.now().hour}ч_{datetime.now().minute}мин"        
+        
         # ------------------------------------------------------------------
         # Создаём папку отчетных файлов программы если её нет
-        self.path_report = f"Отчетные файлы"
-        self.path_figure = f"Отчетные файлы/Графики"
+        self.path_report = f"{directory_path}\Отчетные файлы"
+        self.path_figure = f"{directory_path}\Отчетные файлы\Графики"
         if not os.path.exists(self.path_report):
             os.mkdir(self.path_report)
             os.mkdir(self.path_figure)
-        else:
-            # ------------------------------------------------------------------
-            # Предварительная чистка отчетных файлов
-            if clear_report:
-                with open(f"{self.path_report}\\report_P_потери.txt", mode="w") as f:
-                    f.write("Здесь формируется отчет\n\n")
-                with open(f"{self.path_report}\\report_P_потр.txt", mode="w") as f:
-                    f.write("Здесь формируется отчет\n\n")
-                with open(f"{self.path_report}\\report_U_расч.txt", mode="w") as f:
-                    f.write("Здесь формируется отчет\n\n")
-                with open(f"{self.path_report}\\report_U_зд.txt", mode="w") as f:
-                    f.write("Здесь формируется отчет\n\n")
-                with open(f"{self.path_report}\\report_P_Q_нагр.txt", mode="w") as f:
-                    f.write("Здесь формируется отчет\n\n")
-                with open(f"{self.path_report}\\report_узлы_к_районам.txt", mode="w") as f:
-                    f.write("Здесь формируется отчет\n\n")
-                with open(f"{self.path_report}\\report_объединения_районов.txt", mode="w") as f:
-                    f.write("Здесь формируется отчет\n\n")
-                with open(f"{self.path_report}\\report_перетоки_сечений.txt", mode="w") as f:
-                    f.write("Здесь формируется отчет\n\n")
-                with open(f"{self.path_report}\\report_количество_строк.txt", mode="w") as f:
-                    f.write("Здесь формируется отчет\n\n")
-            if clear_figure:
-                for f in os.listdir(self.path_figure):
-                    os.remove(os.path.join(self.path_figure, f))
+            for i in range(1,17):
+                os.mkdir(f"{self.path_report}\Критерий №{i}")
 
         # ------------------------------------------------------------------
         # Работа с директориями
         # Путь к директории последнего года
-        self.path_last_year = os.path.join(directory_path,
-                                           os.listdir(directory_path)[-1])
+        for i in range(0,-len(os.listdir(directory_path)),-1):
+            self.path_last_year = os.path.join(directory_path,
+                                            os.listdir(directory_path)[i-1])
+            if self.path_last_year != self.path_report:
+                break
 
         # Открываем директорию последнего года, чтобы получить количество режимов
         self.last_year = os.listdir(self.path_last_year)
@@ -56,17 +42,18 @@ class CheckUp:
         for i in range(self.length):
             middle_mode_path = []
             for year in os.listdir(directory_path):
-                if i==self.length-1:
-                    # Заносим все имена папок в массив
-                    self.year_mass.append(int(year))
-                # Дает путь к каждой папке года
-                year_path = os.path.join(directory_path, year)
+                if year!=os.path.basename(self.path_report):
+                    if i==self.length-1:
+                        # Заносим все имена папок в массив
+                        self.year_mass.append(int(year))
+                    # Дает путь к каждой папке года
+                    year_path = os.path.join(directory_path, year)
 
-                # Получаем имя характерного режима
-                name_char_mode = os.listdir(year_path)[i]
-                # Путь к режиму
-                char_mode_path = os.path.join(year_path, name_char_mode)
-                middle_mode_path.append(char_mode_path)
+                    # Получаем имя характерного режима
+                    name_char_mode = os.listdir(year_path)[i]
+                    # Путь к режиму
+                    char_mode_path = os.path.join(year_path, name_char_mode)
+                    middle_mode_path.append(char_mode_path)
             self.modes_path.append(middle_mode_path)
         
         # Сделаем массив названий характерных режимов
@@ -94,15 +81,20 @@ class CheckUp:
         self.qn_node = self.node.Cols("qn")
         self.vzd = self.node.Cols("vzd")
         self.u_nom = self.node.Cols("uhom")
+        self.pg_node = self.node.Cols("pg")
+        self.pgmax_node = self.node.Cols("pg_max")
 
         # Ветви
         self.vetv = self.rastr.Tables("vetv")
         self.ip = self.vetv.Cols("ip")
         self.iq = self.vetv.Cols("iq")
+        self.np = self.vetv.Cols("np")
+        self.i_max = self.vetv.Cols("i_max")
+        self.i_dop_r = self.vetv.Cols("i_dop_r")
         self.r = self.vetv.Cols("r")
         self.x = self.vetv.Cols("x")
         self.b = self.vetv.Cols("b")
-        self.na_vetv = self.vetv.Cols("na")
+        self.g = self.vetv.Cols("g")
 
         # Районы
         self.area = self.rastr.Tables("area")
@@ -124,6 +116,17 @@ class CheckUp:
         # СХН
         self.polin = self.rastr.Tables("polin")
         self.nsx_polin = self.polin.Cols("nsx")
+        
+        # Генераторы (УР)
+        self.gen = self.rastr.Tables("Generator")
+        self.num_gen = self.gen.Cols("Num")
+        self.num_PQ_gen = self.gen.Cols("NumPQ")
+        self.P_gen = self.gen.Cols("P")
+        self.sta_gen = self.gen.Cols("sta")
+        
+        # PQ-диаграммы
+        self.PQ = self.rastr.Tables("graphik2")
+        self.num_PQ = self.PQ.Cols("Num")
         
         self.rastr.rgm('')
 
@@ -161,6 +164,7 @@ class CheckUp:
     # Метод для проверки 1-го критерия по потерям
     
     def crit_1(self):
+        print("Выполняется критерий №1")
         na_str = input(
             "Введите номера интересующих районов через запятую, либо нажмите 'Enter' для проверки всeх:")
         print("Начинается выполнение, пожалуйста подождите")
@@ -195,13 +199,13 @@ class CheckUp:
                                 Значение потребления: {round(self.pop_area.Z(ind),2)} МВт
                                 Потери от потребления: {round(percent,2)}%
                                 """)
-                        with open(f"{self.path_report}\\report_P_потери.txt", mode="a+") as f:
+                        with open(f"{self.path_report}\Критерий №1\К1  {self.date}.txt", mode="a+") as f:
                                 f.write(f"\n{text}")
                         flag = True
                     k += 1
         if flag!=True:
             text = f"Значения потерь в районах корректны"
-            with open(f"{self.path_report}\\report_P_потери.txt", mode="a+") as f:
+            with open(f"{self.path_report}\Критерий №1\К1  {self.date}.txt", mode="a+") as f:
                 f.write(f"\n{text}")
 
             
@@ -209,7 +213,8 @@ class CheckUp:
     # ------------------------------------------------------------------
     # Метод для проверки 2-го критерия по потреблению
 
-    def crit_2(self, figure):
+    def crit_2(self, figure=figure_set):
+        print("Выполняется критерий №2")
         na_str = input(
             "Введите номера интересующих районов через запятую, либо нажмите 'Enter' для проверки всeх:")
         print("Начинается выполнение, пожалуйста подождите")
@@ -217,6 +222,8 @@ class CheckUp:
             na = [int(x) for x in na_str.split(",")]
         else:
             na = self.give_na()
+        # Создаем папку для графиков
+        os.mkdir(f"{self.path_figure}\\{self.date}")
         # Получим значения Pпотр для всех районов и всех режимов за все года
         # Перебор всех заданных районов
         flag2 = False
@@ -258,7 +265,7 @@ class CheckUp:
                                         {year_1} - Pпотр = {k}
                                         {year_2} - Pпотр = {p}
                                 """)
-                            with open(f"{self.path_report}\\report_P_потр.txt", mode="a+") as f:
+                            with open(f"{self.path_report}\Критерий №2\К2  {self.date}.txt", mode="a+") as f:
                                 f.write(f"\n{text}")
                             flag2 = True
                     k = p
@@ -273,15 +280,14 @@ class CheckUp:
                     else:
                         label = name_char_mode[name_char_mode.find("Паводок"):]
                     self.plot_figure(nm_ar, self.year_mass, Pop_mass_mode, label)
-            
-            plt.savefig(f'{self.path_figure}\\{nm_ar}.png',
+            if figure:
+                plt.savefig(f'{self.path_figure}\\{self.date}\\{nm_ar}.png',
                     bbox_inches='tight')
-            plt.close()
+                plt.close()
         if flag2!=True:
             text = f"P_потр монотонно изменяется в заданных пределах"
-            with open(f"{self.path_report}\\report_P_потр.txt", mode="a+") as f:
+            with open(f"{self.path_report}\Критерий №2\К2  {self.date}.txt", mode="a+") as f:
                 f.write(f"\n{text}")
-            
 
 
     # ------------------------------------------------------------------
@@ -289,9 +295,9 @@ class CheckUp:
     # Метод для проверки 3-го критерия по расчетному напряжению
     
     def crit_3(self):
+        print("Выполняется критерий №3")
         flag = False
         for mode in self.modes_path:
-            print("Проверяю характерный режим")
             j=0
             for mode_year in mode:
                 self.rastr_work(mode_year)
@@ -317,14 +323,14 @@ class CheckUp:
                                     Uном: {Unom} кВ
                                     Номера узлов: {mass_ny}
                                     """)
-                        with open(f"{self.path_report}\\report_U_расч.txt", mode="a+") as f:
+                        with open(f"{self.path_report}\Критерий №3\К3  {self.date}.txt", mode="a+") as f:
                             f.write(f"\n{text}")
                         flag = True
                     k += 1
                 j += 1
         if flag!=True:
             text = f"Расчетные значения напряжений не выходят из заданных пределов"
-            with open(f"{self.path_report}\\report_U_расч.txt", mode="a+") as f:
+            with open(f"{self.path_report}\Критерий №3\К3  {self.date}.txt", mode="a+") as f:
                 f.write(f"\n{text}")
        
     # ------------------------------------------------------------------
@@ -332,9 +338,9 @@ class CheckUp:
     # Метод для проверки 4-го критерия по отклонению U_зд от номинального
     
     def crit_4(self):
+        print("Выполняется критерий №4")
         flag = False
         for mode in self.modes_path:
-            print("Проверяю характерный режим")
             j=0
             for mode_year in mode:
                 self.rastr_work(mode_year)
@@ -357,13 +363,13 @@ class CheckUp:
                                 Характерный режим: {name_char_mode}
                                 Номера узлов: {mass_ny}
                                 """)
-                    with open(f"{self.path_report}\\report_U_зд.txt", mode="a+") as f:
+                    with open(f"{self.path_report}\Критерий №4\К4  {self.date}.txt", mode="a+") as f:
                         f.write(f"\n{text}")
                     flag = True
                 j += 1
         if flag!=True:
             text = f"Все заданные напряжения имеют корректные значения"
-            with open(f"{self.path_report}\\report_U_зд.txt", mode="a+") as f:
+            with open(f"{self.path_report}\Критерий №4\К4  {self.date}.txt", mode="a+") as f:
                 f.write(f"\n{text}")
                 
                 
@@ -372,9 +378,9 @@ class CheckUp:
     # Метод для проверки 5-го критерия по соответсвтвию P и Q нагрузки
     
     def crit_5(self):
+        print("Выполняется критерий №5")
         flag = False
         for mode in self.modes_path:
-            print("Проверяю характерный режим")
             j=0
             for mode_year in mode:
                 self.rastr_work(mode_year)
@@ -398,14 +404,14 @@ class CheckUp:
                             P_нагр: {pn}
                             Тангенс: {tan}
                             """)
-                        with open(f"{self.path_report}\\report_P_Q_нагр.txt", mode="a+") as f:
+                        with open(f"{self.path_report}\Критерий №5\К5  {self.date}.txt", mode="a+") as f:
                             f.write(f"\n{text}")
                         flag = True
                     index = self.node.FindNextSel(index)
                 j += 1
         if flag!=True:
             text = f"Все узлы имеют корректное отношение Q_нагр к P_нагр"
-            with open(f"{self.path_report}\\report_P_Q_нагр.txt", mode="a+") as f:
+            with open(f"{self.path_report}\Критерий №5\К5  {self.date}.txt", mode="a+") as f:
                 f.write(f"\n{text}")
     
     
@@ -414,9 +420,9 @@ class CheckUp:
     # Метод для проверки 6-го критерия по привязке узлов к районам
     
     def crit_6(self):
+        print("Выполняется критерий №6")
         flag = False
         for mode in self.modes_path:
-            print("Проверяю характерный режим")
             j=0
             for mode_year in mode:
                 self.rastr_work(mode_year)
@@ -436,22 +442,22 @@ class CheckUp:
                                 Характерный режим: {name_char_mode}
                                 Номера узлов: {mass_ny}
                                 """)
-                    with open(f"{self.path_report}\\report_узлы_к_районам.txt", mode="a+") as f:
+                    with open(f"{self.path_report}\Критерий №6\К6  {self.date}.txt", mode="a+") as f:
                         f.write(f"\n{text}")
                     flag = True
                 j += 1
         if flag!=True:
             text = f"Все узлы привязаны к районам"
-            with open(f"{self.path_report}\\report_узлы_к_районам.txt", mode="a+") as f:
+            with open(f"{self.path_report}\Критерий №6\К6  {self.date}.txt", mode="a+") as f:
                 f.write(f"\n{text}")
     
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
-    # Метод для проверки 7-го критерия заданию номера объединения в районах
+    # Метод для проверки 7-го критерия по заданию номера объединения в районах
     def crit_7(self):
+        print("Выполняется критерий №7")
         flag = False
         for mode in self.modes_path:
-            print("Проверяю характерный режим")
             j=0
             for mode_year in mode:
                 self.rastr_work(mode_year)
@@ -471,13 +477,13 @@ class CheckUp:
                                 Характерный режим: {name_char_mode}
                                 Номера районов: {mass_na}
                                 """)
-                    with open(f"{self.path_report}\\report_объединения_районов.txt", mode="a+") as f:
+                    with open(f"{self.path_report}\Критерий №7\К7  {self.date}.txt", mode="a+") as f:
                         f.write(f"\n{text}")
                     flag = True
                 j += 1
         if flag!=True:
             text = f"Все районы имеют заданный номер объединения"
-            with open(f"{self.path_report}\\report_объединения_районов.txt", mode="a+") as f:
+            with open(f"{self.path_report}\Критерий №7\К7  {self.date}.txt", mode="a+") as f:
                 f.write(f"\n{text}")
     
     
@@ -486,12 +492,12 @@ class CheckUp:
     # Метод для проверки 8-го критерия по превышению перетоков в сечениях
     
     def crit_8(self):
+        print("Выполняется критерий №8")
         path_sech = input("Задайте путь к файлу сечений:\n")
         path_shabl_sech = input("Задайте путь к шаблону сечений:\n")
         # path_shabl_sech = input("Задайте путь к шаблону сечений:\n")
         flag = False
         for mode in self.modes_path:
-            print("Проверяю характерный режим")
             j=0
             for mode_year in mode:
                 self.rastr_work(mode_year, path_sech, path_shabl_sech)
@@ -512,13 +518,13 @@ class CheckUp:
                                 Характерный режим: {name_char_mode}
                                 Номера сечений: {mass_ns} 
                                 """)
-                    with open(f"{self.path_report}\\report_перетоки_сечений.txt", mode="a+") as f:
+                    with open(f"{self.path_report}\Критерий №8\К8  {self.date}.txt", mode="a+") as f:
                         f.write(f"\n{text}")
                     flag = True
                 j += 1
         if flag!=True:
             text = f"Все сечения имеют корректные перетоки"
-            with open(f"{self.path_report}\\report_перетоки_сечений.txt", mode="a+") as f:
+            with open(f"{self.path_report}\Критерий №8\К8  {self.date}.txt", mode="a+") as f:
                 f.write(f"\n{text}")
     
     
@@ -526,9 +532,10 @@ class CheckUp:
     # ------------------------------------------------------------------
     # Метод для проверки 9-го критерия по неизменности количества строк в таблицах
     def crit_9(self):
+        print("Выполняется критерий №9")
         for i in range(len(self.year_mass)):
             print(f"Проверяю {self.year_mass[i]} год")
-            with open(f"{self.path_report}\\report_количество_строк.txt", mode="a+") as f:
+            with open(f"{self.path_report}\Критерий №9\К9  {self.date}.txt", mode="a+") as f:
                 f.write(f"\n\n{self.year_mass[i]} год\n[Узлы, Ветви, Районы, Терр, Ген]")
             for k in range(len(self.modes_path)):
                 # Соединяемся с Rastr
@@ -541,7 +548,7 @@ class CheckUp:
                 amount_area2 = self.rastr.Tables("area2").Count
                 amount_Generator = self.rastr.Tables("Generator").Count
                 amount_mass = [amount_node, amount_vetv, amount_area, amount_area2, amount_Generator]
-                with open(f"{self.path_report}\\report_количество_строк.txt", mode="a+") as f:
+                with open(f"{self.path_report}\Критерий №9\К9  {self.date}.txt", mode="a+") as f:
                     f.write(f"\n{amount_mass} - {os.path.basename(self.modes_path[k][i])}")
     
     
@@ -549,9 +556,9 @@ class CheckUp:
     # ------------------------------------------------------------------
     # Метод для проверки 10-го критерия по соответствию используемых СХН
     def crit_10(self):
+        print("Выполняется критерий №10")
         flag2=False
         for mode in self.modes_path:
-            print("Проверяю характерный режим")
             j=0
             for mode_year in mode:
                 self.rastr_work(mode_year)
@@ -561,80 +568,360 @@ class CheckUp:
                 mass_nsx = []
                 for k in range(self.polin.Count):
                     mass_nsx.append(self.nsx_polin.Z(k))
-                # Перебор всех узлов
+                # Задаём массив итоговых узлов удовлетворяющих условию
                 mass_ny = []
+                # Задаём множество используемых СХН
+                mass_nsx_use = set()
+                # Выборка
                 self.node.SetSel("nsx>=1")
                 index = self.node.FindNextSel(-1)
+                # Перебор всех узлов
                 for i in range(self.node.Count):
-                    flag=False
-                    # Проверка условия
+                    flag = True
+                    nsxnode = self.nsx_node.Z(index)
+                    # Проверка условий
                     for nsx in mass_nsx:
-                        # Если СХН узла есть в таблице СХН, то узел добавляется в массив
-                        if self.nsx_node.Z(index)==nsx:
-                            flag=True
+                        # Проверка условие ссылки на несуществующий СХН
+                        if nsxnode==nsx or nsxnode==1 or nsxnode==2:
+                            flag = False
+                        # Формируем неповторяющееся множество используемых СХН
+                        if nsx == nsxnode:
+                            mass_nsx_use.add(nsx)
                     if flag:
                         mass_ny.append(self.ny_node.Z(index))
-                    index = self.area.FindNextSel(index)
+                    index = self.node.FindNextSel(index)
+                # Получаем номера СХН, которые не используются
+                mass_nsx = set(mass_nsx)
+                mass_nsx.difference_update(mass_nsx_use)
                 if len(mass_ny)>0:
                     text = (f"""Warning: обращение к несуществующему СХН
                                 Год: {self.year_mass[j]}
                                 Характерный режим: {name_char_mode}
                                 Номера узлов: {mass_ny}
                                 """)
-                    with open(f"{self.path_report}\\report_СХН_узлы.txt", mode="a+") as f:
+                    with open(f"{self.path_report}\Критерий №10\К10  {self.date}.txt", mode="a+") as f:
+                        f.write(f"\n{text}")
+                    flag2 = True
+                if len(mass_nsx_use)>0:
+                    text = (f"""Warning: неиспользуемый СХН
+                                Год: {self.year_mass[j]}
+                                Характерный режим: {name_char_mode}
+                                Номера CХН: {mass_nsx}
+                                """)
+                    with open(f"{self.path_report}\Критерий №10\К10  {self.date}.txt", mode="a+") as f:
                         f.write(f"\n{text}")
                     flag2 = True
                 j += 1
         if flag2!=True:
-            text = f"СХН во всех узлах заданны верно"
-            with open(f"{self.path_report}\\report_СХН_узлы.txt", mode="a+") as f:
+            text = f"СХН заданны верно"
+            with open(f"{self.path_report}\Критерий №10\К10  {self.date}.txt", mode="a+") as f:
                 f.write(f"\n{text}")
-
+                
+                
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Метод для проверки 11-го критерия по соответствию используемых PQ-диаграмм в таблице Генераторы (УР)
+    def crit_11(self):
+        print("Выполняется критерий №11")
+        flag2=False
+        for mode in self.modes_path:
+            j=0
+            for mode_year in mode:
+                self.rastr_work(mode_year)
+                # Название характерного режима
+                name_char_mode = os.path.basename(mode_year)[:-4]
+                # Множество номеров имеющихся PQ-диаграмм
+                mass_PQ = set()
+                for k in range(self.PQ.Count):
+                    mass_PQ.add(self.num_PQ.Z(k))
+                # Задаём массив итоговых номеров генераторов удовлетворяющих условию
+                mass_num_gen = []
+                # Задаём множество используемых PQ-диаграмм
+                mass_PQ_use = set()
+                # Выборка
+                self.gen.SetSel("NumPQ>=1")
+                index = self.gen.FindNextSel(-1)
+                for i in range(self.gen.Count):
+                    flag = True
+                    PQ_gen = self.num_PQ_gen.Z(index)
+                    # Проверка условий
+                    for PQ in mass_PQ:
+                        # Проверка условия ссылки на несуществующую PQ-диаграмму
+                        if PQ_gen==PQ:
+                            flag = False
+                            mass_PQ_use.add(PQ)
+                    if flag:
+                        mass_num_gen.append(self.num_gen.Z(index))
+                    index = self.gen.FindNextSel(index)
+                # Получаем номера PQ, которые не используются
+                mass_PQ.difference_update(mass_PQ_use)
+                if len(mass_num_gen)>0:
+                    text = (f"""Warning: обращение к несуществующей PQ-диаграмме
+                                Год: {self.year_mass[j]}
+                                Характерный режим: {name_char_mode}
+                                Номера генераторов: {mass_num_gen}
+                                """)
+                    with open(f"{self.path_report}\Критерий №11\К11  {self.date}.txt", mode="a+") as f:
+                        f.write(f"\n{text}")
+                    flag2 = True
+                if len(mass_PQ)>0:
+                    text = (f"""Warning: неиспользуемая PQ-диаграмма
+                                Год: {self.year_mass[j]}
+                                Характерный режим: {name_char_mode}
+                                Номера PQ+диаграмм: {mass_PQ}
+                                """)
+                    with open(f"{self.path_report}\Критерий №11\К11  {self.date}.txt", mode="a+") as f:
+                        f.write(f"\n{text}")
+                    flag2 = True
+                j += 1
+        if flag2!=True:
+            text = f"PQ-диаграммы заданны верно"
+            with open(f"{self.path_report}\Критерий №11\К11  {self.date}.txt", mode="a+") as f:
+                f.write(f"\n{text}")
+                
+    
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Метод для проверки 12-го критерия по соответствию состояния и мощности генератора
+    def crit_12(self):
+        print("Выполняется критерий №12")
+        flag = False
+        for mode in self.modes_path:
+            j=0
+            for mode_year in mode:
+                self.rastr_work(mode_year)
+                # Название характерного режима
+                name_char_mode = os.path.basename(mode_year)[:-4]
+                index = self.gen.FindNextSel(-1)
+                # Перебор всех генераторов
+                mass_num_gen = []
+                for i in range(self.gen.Count):
+                    # Проверка условия (sta=False - Значит включенный ген; sta=True - Значит отключенный ген)
+                    if (self.sta_gen.Z(index) == True and self.P_gen.Z(index) != 0) or (self.sta_gen.Z(index) == False and self.P_gen.Z(index) == 0):
+                        mass_num_gen.append(self.num_gen.Z(index))
+                    index = self.gen.FindNextSel(index)
+                if len(mass_num_gen)>0:
+                    text = (f"""Warning: несоответсвие состояния и мощности генератора
+                                Год: {self.year_mass[j]}
+                                Характерный режим: {name_char_mode}
+                                Номера генераторов: {mass_num_gen}
+                                """)
+                    with open(f"{self.path_report}\Критерий №12\К12  {self.date}.txt", mode="a+") as f:
+                        f.write(f"\n{text}")
+                    flag = True
+                j += 1
+        if flag!=True:
+            text = f"Все генераторы заданны верно"
+            with open(f"{self.path_report}\Критерий №12\К12  {self.date}.txt", mode="a+") as f:
+                f.write(f"\n{text}")
+                
+                
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Метод для проверки 13-го критерия по нарушению токовых ограничений
+    def crit_13(self):
+        print("Выполняется критерий №13")
+        flag = False
+        for mode in self.modes_path:
+            j=0
+            for mode_year in mode:
+                self.rastr_work(mode_year)
+                # Название характерного режима
+                name_char_mode = os.path.basename(mode_year)[:-4]
+                self.vetv.SetSel("i_dop_r>0")
+                index = self.vetv.FindNextSel(-1)
+                # Перебор всех ветвей
+                mass_ip_iq = []
+                for i in range(self.vetv.Count):
+                    # Проверка нарушения токовых ограничения
+                    if self.i_max.Z(index)*1000 > self.i_dop_r.Z(index):
+                        mass_ip_iq.append([self.ip.Z(index),self.iq.Z(index),self.np.Z(index)])
+                    index = self.vetv.FindNextSel(index)
+                if len(mass_ip_iq)>0:
+                    text = (f"""Warning: нарушение токовых ограничений
+                                Год: {self.year_mass[j]}
+                                Характерный режим: {name_char_mode}
+                                Линии формата [нач., кон., парл.]: {mass_ip_iq}
+                                """)
+                    with open(f"{self.path_report}\Критерий №13\К13  {self.date}.txt", mode="a+") as f:
+                        f.write(f"\n{text}")
+                    flag = True
+                j += 1
+        if flag!=True:
+            text = f"Токовые ограничения не нарушаются"
+            with open(f"{self.path_report}\Критерий №13\К13  {self.date}.txt", mode="a+") as f:
+                f.write(f"\n{text}")
+    
+    
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Метод для проверки 14-го критерия по нарушению токовых ограничений
+    def crit_14(self):
+        print("Выполняется критерий №14")
+        flag_vetv = False
+        flag_node = False
+        for mode in self.modes_path:
+            j=0
+            for mode_year in mode:
+                self.rastr_work(mode_year)
+                # Название характерного режима
+                name_char_mode = os.path.basename(mode_year)[:-4]
+                index = self.vetv.FindNextSel(-1)
+                
+                # Перебор всех ветвей
+                mass_ip_iq = []
+                param_vetv = set()
+                for i in range(self.vetv.Count):
+                    flag2=False
+                    r = self.r.Z(index)
+                    x = self.x.Z(index)
+                    g = self.g.Z(index)*1e+6
+                    b = self.b.Z(index)*1e+6
+                    # Проверка условий
+                    if r > rmax_set or r < rmin_set:
+                        param_vetv.add("R")
+                        flag2=True
+                    if x > xmax_set or x < xmin_set:
+                        param_vetv.add("X")
+                        flag2=True
+                    if g > gmax_set or g < gmin_set:
+                        param_vetv.add("G")
+                        flag2=True
+                    if b > bmax_set or b < bmin_set:
+                        param_vetv.add("B")
+                        flag2=True
+                    if flag2:
+                        mass_ip_iq.append([self.ip.Z(index),self.iq.Z(index),self.np.Z(index)])
+                    index = self.vetv.FindNextSel(index)
+                index = self.vetv.FindNextSel(-1)
+                
+                # Перебор всех узлов
+                index = self.node.FindNextSel(-1)
+                mass_ny = []
+                param_node = set()
+                for i in range(self.node.Count):
+                    flag2=False
+                    pn = self.pn_node.Z(index)
+                    qn = self.qn_node.Z(index)
+                    pg = self.pg_node.Z(index)
+                    pgmax = self.pgmax_node.Z(index)
+                    # Проверка условий
+                    if pn > Pnmax_set or pn < Pnmin_set:
+                        param_node.add("Pn")
+                        flag2 = True
+                    if qn > Qnmax_set or qn < Qnmin_set:
+                        param_node.add("Qn")
+                        flag2 = True
+                    if pg > pgmax or pg < Pgmin_set:
+                        param_node.add("Pg")
+                        flag2 = True
+                    if flag2:
+                        mass_ny.append(self.ny_node.Z(index))
+                    index = self.node.FindNextSel(index)
+                
+                # Запись в отчет
+                if len(mass_ip_iq)>0:
+                    text = (f"""Warning: нехарактерные значения параметров ветвей
+                                Год: {self.year_mass[j]}
+                                Характерный режим: {name_char_mode}
+                                Параметры: {param_vetv}
+                                Номера ветвей вида [нач., кон., парл.]: {mass_ip_iq}
+                                """)
+                    with open(f"{self.path_report}\Критерий №14\К14 ВЕТВИ  {self.date}.txt", mode="a+") as f:
+                        f.write(f"\n{text}")
+                    flag_vetv = True
+                if len(mass_ny)>0:
+                    text = (f"""Warning: нехарактерные значения параметров узлов
+                                Год: {self.year_mass[j]}
+                                Характерный режим: {name_char_mode}
+                                Параметры: {param_node}
+                                Номера узлов: {mass_ny}
+                                """)
+                    with open(f"{self.path_report}\Критерий №14\К14 УЗЛЫ  {self.date}.txt", mode="a+") as f:
+                        f.write(f"\n{text}")
+                    flag_node = True
+                j += 1
+                
+        if flag_vetv!=True:
+            text = f"Все параметры ветвей заданны верно"
+            with open(f"{self.path_report}\Критерий №14\К14 ВЕТВИ  {self.date}.txt", mode="a+") as f:
+                f.write(f"\n{text}")
+        if flag_node!=True:
+            text = f"Все параметры узлов заданны верно"
+            with open(f"{self.path_report}\Критерий №14\К14 УЗЛЫ  {self.date}.txt", mode="a+") as f:
+                f.write(f"\n{text}")
+    
+    
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Метод для проверки ВСЕХ критериев
+    def all_crit(self):
+        self.crit_1()
+        self.crit_2()
+        self.crit_3()
+        self.crit_4()
+        self.crit_5()
+        self.crit_6()
+        self.crit_7()
+        self.crit_8()
+        self.crit_9()
+        self.crit_10()
+        self.crit_11()
+        self.crit_12()
+        self.crit_13()
+        self.crit_14()
+    
 def start(direct_path):
     direct_path = input("Введите путь к папкам годов:\n")
-    print("Очистить данные отчетов?")
-    cl_rep = input("Напишите 'Yes' если да; нажмите 'Enter' если нет: ")
-    clear_rep = cl_rep == 'Yes'
-    print("Очистить папку с графиками?")
-    cl_fig = input("Напишите 'Yes' если да; нажмите 'Enter' если нет: ")
-    clear_figure = cl_fig == 'Yes'
-    print("Строить графики?")
-    fig = input("Нажмите 'Enter' если да; напишите 'No' если нет: ")
-    figure = fig ==''
     print("""Номера критериев:
-    1 - Проверка корректности заданных потерь Района;
-    2 - Проверка немонотонности изменения потребления Района;
-    3 - Проверка отклонения расчетного напряжения;
-    4 - Проверка отклонения U_зд от номинального;
-    5 - Проверка соотношения P и Q нагрузки;
-    6 - Проверка привязки узлов к районам;
-    7 - Проверка задания номера объединения в таблице "Районы";
-    8 - Проверка превышения перетоков в сечениях;
-    9 - Проверка неизменности количества строк в характерных режимах;
-    10 - Проверка взаимосвязи заданных СХН в узлах с таблицей СХН (НЕ ГОТОВО)
+    0  -  Проверка ВСЕХ критериев
+    1  -  Проверка корректности заданных потерь Района;
+    2  -  Проверка немонотонности изменения потребления Района;
+    3  -  Проверка отклонения расчетного напряжения;
+    4  -  Проверка отклонения U_зд от номинального;
+    5  -  Проверка соотношения P и Q нагрузки;
+    6  -  Проверка привязки узлов к районам;
+    7  -  Проверка задания номера объединения в таблице "Районы";
+    8  -  Проверка превышения перетоков в сечениях;
+    9  -  Проверка неизменности количества строк в характерных режимах;
+    10 -  Проверка взаимосвязи заданных СХН в узлах с таблицей СХН
+    11 -  Проверка взаимосвязи заданных PQ-диаграмм таблицы Генераторы (УР)
+    12 -  Проверка соответствия состояния и мощности генератора
+    13 -  Проверка нарушения токовых ограничений по ветвям
+    14 -  Проверка корректности параметров ветвей и узлов
           """)
     num_crit = input("Введите номер критерия: ")
     match num_crit:
+        case "0":
+            CheckUp(direct_path).all_crit()
         case "1":
-            CheckUp(direct_path, clear_rep, clear_figure).crit_1()
+            CheckUp(direct_path).crit_1()
         case "2":
-            CheckUp(direct_path, clear_rep, clear_figure).crit_2(figure)
+            CheckUp(direct_path).crit_2()
         case "3":
-            CheckUp(direct_path, clear_rep, clear_figure).crit_3()
+            CheckUp(direct_path).crit_3()
         case "4":
-            CheckUp(direct_path, clear_rep, clear_figure).crit_4()
+            CheckUp(direct_path).crit_4()
         case "5":
-            CheckUp(direct_path, clear_rep, clear_figure).crit_5()
+            CheckUp(direct_path).crit_5()
         case "6":
-            CheckUp(direct_path, clear_rep, clear_figure).crit_6()
+            CheckUp(direct_path).crit_6()
         case "7":
-            CheckUp(direct_path, clear_rep, clear_figure).crit_7()
+            CheckUp(direct_path).crit_7()
         case "8":
-            CheckUp(direct_path, clear_rep, clear_figure).crit_8()
+            CheckUp(direct_path).crit_8()
         case "9":
-            CheckUp(direct_path, clear_rep, clear_figure).crit_9()
-        # case "10":
-        #     CheckUp(direct_path, clear_rep, clear_figure).crit_10()
+            CheckUp(direct_path).crit_9()
+        case "10":
+            CheckUp(direct_path).crit_10()
+        case "11":
+            CheckUp(direct_path).crit_11()
+        case "12":
+            CheckUp(direct_path).crit_12()
+        case "13":
+            CheckUp(direct_path).crit_13()
+        case "14":
+            CheckUp(direct_path).crit_14()
         case _:
             print("Неверный критерий")
     return direct_path
@@ -647,10 +934,6 @@ while True:
     else:
         break
 
-# dir_path = r'C:\Users\bukre\OneDrive\Рабочий стол\ОДУ\Проверка расчетных схем\02_ПРМ с учетом корректировок'
-# clear_rep = True
-# clear_figure = clear_rep
-# a = CheckUp(dir_path, clear_rep, clear_figure).crit_2(figure=True)
-# print(a)
 
 # C:\Users\bukre\OneDrive\Рабочий стол\ОДУ\Проверка расчетных схем\Файл сечений\сечения.sch
+# C:\Users\bukre\OneDrive\Документы\RastrWin3\SHABLON\сечения.sch
