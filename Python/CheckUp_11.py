@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from importlib import reload
 import config
+from create_excel import ex_write
 
 class CheckUp:
     def __init__(self, directory_path: str):
@@ -80,6 +81,7 @@ class CheckUp:
         # Получаем необходимые таблицы и параметры:
         # Узлы
         self.node = self.rastr.Tables("node")
+        self.name_node = self.node.Cols("name")
         self.ny_node = self.node.Cols("ny")
         self.u_ras = self.node.Cols("vras")
         self.na_node = self.node.Cols("na")
@@ -151,6 +153,19 @@ class CheckUp:
             na.append(self.na_area.Z(index))
         return na
 
+    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Метод нахождения названия режима
+
+    def name_char(self, full_name):
+        if full_name.find("Зима") != -1:
+            name_ch = full_name[full_name.find("Зима"):]
+        elif full_name.find("Лето") != -1:
+            name_ch = full_name[full_name.find("Лето"):]
+        else:
+            name_ch = full_name[full_name.find("Паводок"):]
+        return name_ch
+    
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
     # Метод для построения графиков
@@ -314,16 +329,13 @@ class CheckUp:
 
     def crit_3(self):
         print("Выполняется критерий №3")
-        flag = False
+        mass_excel = []
         for mode in self.modes_path:
             j = 0
             for mode_year in mode:
                 self.rastr_work(mode_year)
                 # Название характерного режима
-                if os.path.splitext(mode_year)[1] == ".os":
-                    name_char_mode = os.path.basename(mode_year)[:-3]
-                else:
-                    name_char_mode = os.path.basename(mode_year)[:-4]
+                name_char_mode = self.name_char(os.path.splitext(mode_year)[0])[:-4]
                 k = 0
                 # Перебор всех Uном
                 for Unom in config.Unom_set:
@@ -334,25 +346,23 @@ class CheckUp:
                     for i in range(self.node.Count):
                         # Проверка условия
                         u_ras = self.u_ras.Z(index)
-                        if u_ras > 0 and (u_ras < (config.Umin_set / 100) * Unom or u_ras > config.Umax_set[k]):
-                            mass_ny.append([self.ny_node.Z(index),round(u_ras,2)])
+                        umin = (config.Umin_set / 100) * Unom
+                        if u_ras > 0 and (u_ras < umin or u_ras > config.Umax_set[k]):
+                            # Массив данных для Excel
+                            mass_ny.append([self.ny_node.Z(index), self.name_node.Z(index), round(u_ras,2), Unom, round(umin,2), config.Umax_set[k]])
                         index = self.node.FindNextSel(index)
                     if len(mass_ny) > 0:
-                        text = (f"""Warning: расчетные значения напряжений выходят из заданных пределов
-                                    Год: {self.year_mass[j]}
-                                    Характерный режим: {name_char_mode}
-                                    Uном: {Unom} кВ
-                                    Номера узлов и Uрасч в кВ: {mass_ny}
-                                    """)
-                        with open(f"{self.path_report}\Критерий №3\К3  {self.date}.txt", mode="a+") as f:
-                            f.write(f"\n{text}")
-                        flag = True
+                        for ny in mass_ny:
+                            mass_excel_mid = [self.year_mass[j], name_char_mode, *ny]
+                            mass_excel.append(mass_excel_mid)
                     k += 1
                 j += 1
-        if flag != True:
-            text = f"Расчетные значения напряжений не выходят из заданных пределов"
-            with open(f"{self.path_report}\Критерий №3\К3  {self.date}.txt", mode="a+") as f:
-                f.write(f"\n{text}")
+        # Заносим в Excel
+        if len(mass_excel)!=0:
+            path_ex = f"{self.path_report}\Критерий №3\К3  {self.date}.xlsx"
+            ex_write(path_ex, mass_excel)
+        else:
+            ex_write(f"{self.path_report}\Критерий №3\К3 Все значения корректны.xlsx", mass_excel)
 
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
