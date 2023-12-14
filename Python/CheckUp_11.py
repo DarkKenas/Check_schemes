@@ -3,17 +3,15 @@ import sys
 import win32com.client
 import matplotlib.pyplot as plt
 from datetime import datetime
-from config import pn_set_2, per_up_set, per_down_set, dp_set, Unom_set, figure_set
-from config import Umax_set, Umin_set, tan_min, tan_max, pn_set_4, Umax_zd_set, Umin_zd_set
-from config import rmax_set, rmin_set, xmin_set, xmax_set, gmin_set, gmax_set, bmin_set, bmax_set
-from config import Pnmax_set, Pnmin_set, Qnmax_set, Qnmin_set, Pgmin_set
-
+from importlib import reload
+import config
 
 class CheckUp:
     def __init__(self, directory_path: str):
+        reload(config)
         # ------------------------------------------------------------------
         # Получаем текущую дату и время
-        self.date = f"{datetime.now().day}_{datetime.now().month}_{datetime.now().year}  {datetime.now().hour}ч_{datetime.now().minute}мин"
+        self.date = f"{datetime.now().day}_{datetime.now().month}_{datetime.now().year}  {datetime.now().hour}ч_{datetime.now().minute}мин_{datetime.now().second}сек"
 
         # ------------------------------------------------------------------
         # Создаём папку отчетных файлов программы если её нет
@@ -74,7 +72,7 @@ class CheckUp:
     # ------------------------------------------------------------------
     # Метод получения всех данных Растра
 
-    def rastr_work(self, path_mode, path_sech="No"):
+    def rastr_work(self, path_mode):
         # Соединяемся с Rastr
         self.rastr = win32com.client.Dispatch("Astra.Rastr")
         # Подгружаем необходимый файл
@@ -142,7 +140,7 @@ class CheckUp:
     # ------------------------------------------------------------------
     # Метод получения всех районов, где Pнаг > pn_set_2 (заданного)
 
-    def give_na(self, pn=pn_set_2):
+    def give_na(self, pn=config.pn_set_2):
         self.rastr_work(os.path.join(self.path_last_year, self.last_year[0]))
         self.area.SetSel(f"pn>{pn}")
         na = []
@@ -197,8 +195,8 @@ class CheckUp:
                     # Процент потерь от потребления
                     percent = self.dp_area.Z(ind) * 100 / self.pop_area.Z(ind)
                     # Проверка значения потерь (Dp) 
-                    if percent > dp_set:
-                        text = (f"""Warning: превышение заданного ({dp_set}%-го) значения потерь от потребления
+                    if percent > config.dp_set:
+                        text = (f"""Warning: превышение заданного ({config.dp_set}%-го) значения потерь от потребления
                                 Район: {nm_ar}
                                 Характерный режим: {name_char_mode}
                                 Год: {self.year_mass[k]}
@@ -219,7 +217,7 @@ class CheckUp:
     # ------------------------------------------------------------------
     # Метод для проверки 2-го критерия по потреблению
 
-    def crit_2(self, figure=figure_set):
+    def crit_2(self, figure=config.figure_set):
         print("Выполняется критерий №2")
         na_str = input(
             "Введите номера интересующих районов через запятую, либо нажмите 'Enter' для проверки всeх:")
@@ -268,10 +266,10 @@ class CheckUp:
                     if k != 0:
                         year_1 = self.year_mass[j - 1]
                         year_2 = self.year_mass[j]
-                        if round((k - p) * 100 / k, 2) > per_down_set:
+                        if round((k - p) * 100 / k, 2) > config.per_down_set:
                             text_reason = f"снижение Pпотр на {round((k - p) * 100 / k, 2)}% ({round(k - p, 1)} МВт)"
                             flag = True
-                        if p > (1 + per_up_set / 100) * k * (year_2 - year_1):
+                        if p > (1 + config.per_up_set / 100) * k * (year_2 - year_1):
                             text_reason = f"увеличение Pпотр на {round((p - k) * 100 / k, 2)}% ({round(p - k, 1)} МВт)"
                             flag = True
                         if flag:
@@ -322,10 +320,13 @@ class CheckUp:
             for mode_year in mode:
                 self.rastr_work(mode_year)
                 # Название характерного режима
-                name_char_mode = os.path.basename(mode_year)[:-4]
+                if os.path.splitext(mode_year)[1] == ".os":
+                    name_char_mode = os.path.basename(mode_year)[:-3]
+                else:
+                    name_char_mode = os.path.basename(mode_year)[:-4]
                 k = 0
                 # Перебор всех Uном
-                for Unom in Unom_set:
+                for Unom in config.Unom_set:
                     self.node.SetSel(f"uhom={Unom}")
                     index = self.node.FindNextSel(-1)
                     # Перебор всех узлов с рассматриваемым Uном
@@ -333,7 +334,7 @@ class CheckUp:
                     for i in range(self.node.Count):
                         # Проверка условия
                         u_ras = self.u_ras.Z(index)
-                        if u_ras > 0 and (u_ras < (Umin_set / 100) * Unom or u_ras > Umax_set[k]):
+                        if u_ras > 0 and (u_ras < (config.Umin_set / 100) * Unom or u_ras > config.Umax_set[k]):
                             mass_ny.append([self.ny_node.Z(index),round(u_ras,2)])
                         index = self.node.FindNextSel(index)
                     if len(mass_ny) > 0:
@@ -374,12 +375,12 @@ class CheckUp:
                     u_zd = self.vzd.Z(index)
                     u_nom = self.u_nom.Z(index)
                     # Проверка условия
-                    if u_zd > u_nom * (1 + Umax_zd_set / 100) or u_zd < u_nom * (1 - Umin_zd_set / 100):
+                    if u_zd > u_nom * (1 + config.Umax_zd_set / 100) or u_zd < u_nom * (1 - config.Umin_zd_set / 100):
                         mass_ny.append([self.ny_node.Z(index),round(u_zd,2)])
                     index = self.node.FindNextSel(index)
                 if len(mass_ny) > 0:
                     text = (
-                        f"""Warning: заданное напряжение (U_зд) выходит из заданных пределов (-{Umin_zd_set}%; +{Umax_zd_set}%)
+                        f"""Warning: заданное напряжение (U_зд) выходит из заданных пределов (-{config.Umin_zd_set}%; +{config.Umax_zd_set}%)
                                 Год: {self.year_mass[j]}
                                 Характерный режим: {name_char_mode}
                                 Номера узлов и Uзд в кВ: {mass_ny}
@@ -407,7 +408,7 @@ class CheckUp:
                 # Название характерного режима
                 name_char_mode = os.path.basename(mode_year)[:-4]
                 # Делаем выборку
-                self.node.SetSel(f"pn>={pn_set_4}")
+                self.node.SetSel(f"pn>={config.pn_set_4}")
                 index = self.node.FindNextSel(-1)
                 # Перебор всех узлов с P_нагн >= pn_set_4
                 for i in range(self.node.Count):
@@ -415,7 +416,7 @@ class CheckUp:
                     pn = self.pn_node.Z(index)
                     qn = self.qn_node.Z(index)
                     tan = qn / pn
-                    if tan < tan_min or tan > tan_max:
+                    if tan < config.tan_min or tan > config.tan_max:
                         text = (f"""Warning: отношение Q_нагр к P_нагр выходит из заданных пределов
                             Год: {self.year_mass[j]}
                             Характерный режим: {name_char_mode}
@@ -793,16 +794,16 @@ class CheckUp:
                     g = self.g.Z(index) * 1e+6
                     b = self.b.Z(index) * 1e+6
                     # Проверка условий
-                    if r > rmax_set or r < rmin_set:
+                    if r > config.rmax_set or r < config.rmin_set:
                         param_vetv.add("R")
                         flag2 = True
-                    if x > xmax_set or x < xmin_set:
+                    if x > config.xmax_set or x < config.xmin_set:
                         param_vetv.add("X")
                         flag2 = True
-                    if g > gmax_set or g < gmin_set:
+                    if g > config.gmax_set or g < config.gmin_set:
                         param_vetv.add("G")
                         flag2 = True
-                    if b > bmax_set or b < bmin_set:
+                    if b > config.bmax_set or b < config.bmin_set:
                         param_vetv.add("B")
                         flag2 = True
                     if flag2:
@@ -821,13 +822,13 @@ class CheckUp:
                     pg = self.pg_node.Z(index)
                     pgmax = self.pgmax_node.Z(index)
                     # Проверка условий
-                    if pn > Pnmax_set or pn < Pnmin_set:
+                    if pn > config.Pnmax_set or pn < config.Pnmin_set:
                         param_node.add("Pn")
                         flag2 = True
-                    if qn > Qnmax_set or qn < Qnmin_set:
+                    if qn > config.Qnmax_set or qn < config.Qnmin_set:
                         param_node.add("Qn")
                         flag2 = True
-                    if pg > pgmax or pg < Pgmin_set:
+                    if pg > pgmax or pg < config.Pgmin_set:
                         param_node.add("Pg")
                         flag2 = True
                     if flag2:
